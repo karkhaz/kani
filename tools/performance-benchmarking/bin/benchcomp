@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+
+
+
+import argparse
+
+
+
+################################################################################
+# ENTRYPOINTS ##################################################################
+################################################################################
+
+
+def main():
+    args = get_args()
+    args.func(args)
+
+
+def entry_filter(args):
+    print("filter")
+
+
+def entry_visualize(args):
+    pass
+
+
+def entry_run(args):
+    run = Runner(args.config)
+
+
+
+def entry_benchcomp(args):
+    pass
+
+
+################################################################################
+# ARGUMENT PROCESSING ##########################################################
+################################################################################
+
+
+def get_args_dict():
+    return {
+        "top_level": {
+            "description":
+                "Run and compare variants of a set of benchmark suites",
+            "epilog": "test",
+        },
+        "args": [],
+        "subparsers": {
+            "title": "benchcomp subcommands",
+            "description":
+                "You can invoke each stage of the benchcomp pipeline "
+                "separately if required",
+            "parsers": {
+                "run": {
+                    "help": "run all variants of all benchmark suites",
+                    "args": [{
+                        "flags": ["-o", "--out-file"],
+                        "default": "result.json",
+                        "metavar": "F",
+                        "help":
+                            "write result to F instead of %(default)s. "
+                            "'-' means print to stdout",
+                    }],
+                },
+                "filter": {
+                    "help": "transform a result by piping it through a program",
+                    "args": [],
+                },
+                "visualize": {
+                    "help": "render a result in various formats",
+                    "args": [],
+                },
+            }
+        }
+    }
+
+
+def get_config_file_arg():
+    return {
+        "flags": ["-c", "--config"],
+        "default": "benchcomp.yaml",
+        "type": ConfigFile,
+        "metavar": "F",
+        "help": "read configuration from file F (default: %(default)s)",
+    }
+
+
+def get_args():
+    ad = get_args_dict()
+    pars = argparse.ArgumentParser(**ad["top_level"])
+
+    pars.set_defaults(func=entry_benchcomp)
+
+    ad["args"].extend([
+        get_config_file_arg(),
+    ])
+    for arg in ad["args"]:
+        flags = arg.pop("flags")
+        pars.add_argument(*flags, **arg)
+
+    subparsers = ad["subparsers"].pop("parsers")
+    subs = pars.add_subparsers(**ad["subparsers"])
+    for subcommand, info in subparsers.items():
+        args = info.pop("args")
+        subparser = subs.add_parser(name=subcommand, **info)
+
+        # Set entry_run() as the entrypoint when invoking `benchcomp run`, etc
+        subparser.set_defaults(func=globals()[f"entry_{subcommand}"])
+
+        args.extend([
+            get_config_file_arg(),
+        ])
+        for arg in args:
+            flags = arg.pop("flags")
+            subparser.add_argument(*flags, **arg)
+
+    return pars.parse_args()
+
+
+
+################################################################################
+# MISC #########################################################################
+################################################################################
+
+
+class ConfigFile:
+    def __init__(self, path):
+        pass
+
+
+
+class Runner:
+    pass
+
+
+
+if __name__ == "__main__":
+    main()
