@@ -226,3 +226,42 @@ jobs:
           if-no-files-found: error
           # Aggressively short retention: we don't really need these
           retention-days: 3
+
+  perf-benchcomp:
+    runs-on: ubuntu-20.04
+    if: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - name: Checkout Kani (pull request HEAD)
+        uses: actions/checkout@v3
+        with:
+          path: ./pr
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Checkout Kani (pull request base)
+        uses: actions/checkout@v3
+        with:
+          path: ./base
+          ref: ${{ github.event.pull_request.base.sha }}
+
+      - name: Setup Kani Dependencies (pull request base)
+        uses: ./base/.github/actions/setup
+        with:
+          os: ubuntu-20.04
+          kani_dir: base
+
+      - name: Setup Kani Dependencies (pull request HEAD)
+        uses: ./pr/.github/actions/setup
+        with:
+          os: ubuntu-20.04
+          kani_dir: pr
+
+      - name: Build Kani (pull request HEAD)
+        run: pushd pr && cargo build-dev
+
+      - name: Build Kani (pull request base)
+        run: pushd base && cargo build-dev
+
+      - name: Run benchcomp
+        run: |
+          pr/tools/benchcomp/bin/benchcomp \
+            --config pr/tools/benchcomp/configs/perf-regression.yaml
