@@ -155,7 +155,9 @@ class dump_markdown_results_table:
     returns a string that is rendered in the benchmark's row in the new column.
     This allows you to emit arbitrary text or markdown formatting in response to
     particular combinations of values for different variants, such as
-    regressions or performance improvements.
+    regressions or performance improvements. If `delete_row_if_empty` is set to
+    `true` on the extra column, then benchmarks for which the extra row text
+    evaluates to an empty string will not be displayed in the table at all.
 
     'scatterplot' takes the values 'off' (default), 'linear' (linearly scaled
     axes), or 'log' (logarithmically scaled axes).
@@ -176,13 +178,16 @@ class dump_markdown_results_table:
             else "**" + str(b["variant_2"]/b["variant_1"]) + "**"
         success:
         - column_name: change
+          delete_row_if_empty: true
           text: >
             lambda b: "" if b["variant_2"] == b["variant_1"]
             else "newly passing" if b["variant_2"]
             else "regressed"
     ```
 
-    Example output:
+    Example output. Note that `bench_1` does not appear in the second table
+    because it neither regressed or is newly passing, so the text in the extra
+    column is empty, and `delete_row_if_empty` is set to `true`.
 
     ```
     ## runtime
@@ -196,7 +201,6 @@ class dump_markdown_results_table:
 
     | Benchmark |  variant_1 | variant_2 | change |
     | --- | --- | --- | --- |
-    | bench_1 | True | True |  |
     | bench_2 | True | False | regressed |
     | bench_3 | False | True | newly passing |
     ```
@@ -355,10 +359,18 @@ class dump_markdown_results_table:
                 columns = self.extra_columns[metric]
             except KeyError:
                 continue
+            to_delete = set()
             for bench, variants in benches.items():
                 tmp_variants = dict(variants)
                 for column in columns:
                     variants[column["column_name"]] = column["text"](tmp_variants)
+                    if all((
+                            column.get("delete_row_if_empty"),
+                            not variants[column["column_name"]])):
+                        to_delete.add(bench)
+                        break
+            for bench in to_delete:
+                benches.pop(bench)
 
 
     @staticmethod

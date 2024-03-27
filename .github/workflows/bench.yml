@@ -10,7 +10,7 @@ name: Kani Performance Benchmarks
 on:
   push:
     branches:
-      - 'main'
+      - '*'
   workflow_call:
 
 jobs:
